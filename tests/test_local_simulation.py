@@ -63,7 +63,7 @@ SHIM=r'''
  window.fetch=window.__mockFetch;
 })();
 '''
-HTML='''<!doctype html><html><head><style>body{margin:0;background:#17181a;color:#e9edf2;font-family:Arial,sans-serif}main{margin:80px 90px}h1{font-size:28px}p{color:#a3a9b3}header{padding:25px 35px;border-bottom:1px solid #30323a}</style></head><body><header>ChatGPT · 本地模拟测试页面</header><main><h1>用量估算器 · v1.2.8</h1><p>此画面由脚本实际渲染，示例数据用于验证界面。</p><button class="__composer-pill" aria-haspopup="menu">6<br>Pro</button><div id="quick-model-menu" hidden><button role="menuitem" aria-label="选择模型" aria-expanded="false">选择模型</button><div id="quick-model-radios" data-testid="composer-model-picker-slider-advanced-view" data-active="false"><div role="menuitemradio">最新</div><div role="menuitemradio">GPT-5.6 Sol</div></div></div><textarea id="prompt-textarea"></textarea></main><script>(()=>{const button=document.querySelector('.__composer-pill'),menu=document.querySelector('#quick-model-menu'),choose=menu.querySelector('[role="menuitem"]'),radios=document.querySelector('#quick-model-radios'),prompt=document.querySelector('#prompt-textarea');let selected='6 Pro';button.addEventListener('pointerdown',()=>{menu.hidden=false;radios.dataset.active='false';choose.setAttribute('aria-expanded','false');button.textContent='思考强度'});choose.addEventListener('click',()=>{choose.setAttribute('aria-expanded','true');setTimeout(()=>{radios.dataset.active='true'},80)});for(const radio of radios.querySelectorAll('[role="menuitemradio"]'))radio.addEventListener('click',()=>{selected=radio.innerText==='最新'?'6 Pro':'5.6 Pro'});prompt.addEventListener('pointerdown',()=>{menu.hidden=true;button.innerHTML=(window.__breakComposerLabel?'错误模型':selected).replace(' ','<br>')})})()</script></body></html>'''
+HTML='''<!doctype html><html><head><style>body{margin:0;background:#17181a;color:#e9edf2;font-family:Arial,sans-serif}main{margin:80px 90px}h1{font-size:28px}p{color:#a3a9b3}header{padding:25px 35px;border-bottom:1px solid #30323a}</style></head><body><header>ChatGPT · 本地模拟测试页面</header><main><h1>用量估算器 · v1.2.9</h1><p>此画面由脚本实际渲染，示例数据用于验证界面。</p><button class="__composer-pill" aria-haspopup="menu">6<br>Pro</button><div id="quick-model-menu" hidden><button role="menuitem" aria-label="选择模型" aria-expanded="false">选择模型</button><div role="menuitem" aria-label="能力" tabindex="0"><span role="slider" aria-valuemin="0" aria-valuemax="4" aria-valuenow="4"></span></div><div id="quick-model-radios" data-testid="composer-model-picker-slider-advanced-view" data-active="false"><div role="menuitemradio">最新</div><div role="menuitemradio">GPT-5.6 Sol</div></div></div><textarea id="prompt-textarea"></textarea></main><script>(()=>{const button=document.querySelector('.__composer-pill'),menu=document.querySelector('#quick-model-menu'),choose=menu.querySelector('[role="menuitem"]'),radios=document.querySelector('#quick-model-radios'),prompt=document.querySelector('#prompt-textarea');let selected='6 Pro',effort=4;const ability=menu.querySelector('[aria-label="能力"]'),slider=ability.querySelector('[role="slider"]');ability.addEventListener('keydown',e=>{if(e.key==='ArrowRight')effort=Math.min(4,effort+1);if(e.key==='ArrowLeft')effort=Math.max(0,effort-1);slider.setAttribute('aria-valuenow',effort)});button.addEventListener('pointerdown',()=>{menu.hidden=false;radios.dataset.active='false';choose.setAttribute('aria-expanded','false');button.textContent='思考强度'});choose.addEventListener('click',()=>{choose.setAttribute('aria-expanded','true');setTimeout(()=>{radios.dataset.active='true'},80)});for(const radio of radios.querySelectorAll('[role="menuitemradio"]'))radio.addEventListener('click',()=>{selected=radio.innerText==='最新'?'6 Pro':'5.6 Pro'});prompt.addEventListener('pointerdown',()=>{menu.hidden=true;button.innerHTML=(window.__breakComposerLabel?'错误模型':selected.replace('Pro',effort===4?'Pro':'高')).replace(' ','<br>')})})()</script></body></html>'''
 res=[]
 
 def check(name, fn):
@@ -138,11 +138,29 @@ with sync_playwright() as pw:
  browser=pw.chromium.launch(executable_path=__import__('os').environ.get('CHROMIUM_PATH','/usr/bin/chromium'),headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
  ctx=browser.new_context(viewport={'width':1280,'height':900});p=newpage(ctx)
  check('Tampermonkey page-window message source reaches UI',lambda:eq(p.locator('.running').inner_text(),'已挂接'))
- check('default schema, request-first mode, compact UI',lambda:(eq(state(p)['schemaVersion'],5),eq(state(p)['settings']['countingMode'],'request-first'),eq(p.locator('.metric-card').count(),3),eq(p.locator('.script-version').inner_text(),'脚本 v1.2.8')))
+ check('default schema, request-first mode, compact UI',lambda:(eq(state(p)['schemaVersion'],5),eq(state(p)['settings']['countingMode'],'request-first'),eq(p.locator('.metric-card').count(),3),eq(p.locator('.script-version').inner_text(),'脚本 v1.2.9')))
  def quick_switch():
   p.locator('[data-action="quick-switch-sol"]').click();wait(p,300);eq(' '.join(p.locator('button.__composer-pill').inner_text().split()),'5.6 Pro');assert '已切换到 5.6 Pro' in p.locator('.toast').inner_text()
   p.locator('[data-action="quick-switch-gpt6"]').click();wait(p,300);eq(' '.join(p.locator('button.__composer-pill').inner_text().split()),'6 Pro');assert '已切换到 6 Pro' in p.locator('.toast').inner_text()
  check('quick model buttons select radio, close menu, and verify editor label',quick_switch)
+ def collapsed_quick_switch():
+  p.locator('[data-action="toggle-menu"]').click();p.locator('[data-action="collapse"]').click()
+  eq(p.locator('.collapsed-grid.three').count(),1);eq(p.locator('.collapsed-switch-actions [data-action^="quick-switch"]').count(),2)
+  p.locator('.collapsed-switch-actions [data-action="quick-switch-sol"]').click();wait(p,300)
+  eq(' '.join(p.locator('button.__composer-pill').inner_text().split()),'5.6 Pro');eq(p.locator('.collapsed-body').count(),1)
+  p.locator('.collapsed-switch-actions [data-action="quick-switch-gpt6"]').click();wait(p,300)
+  eq(' '.join(p.locator('button.__composer-pill').inner_text().split()),'6 Pro');eq(p.locator('.collapsed-body').count(),1)
+  p.locator('[data-action="expand"]').first.click()
+ check('$200 collapsed quick buttons switch both models without expanding',collapsed_quick_switch)
+ def quick_switch_from_high():
+  def set_high():
+   p.evaluate('''() => {const ability=document.querySelector('[role="menuitem"][aria-label="能力"]');for(let i=0;i<2;i++)ability.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}));document.querySelector('#prompt-textarea').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}))}''')
+   eq(p.locator('[role="slider"]').get_attribute('aria-valuenow'),'2')
+  set_high();p.locator('[data-action="quick-switch-sol"]').click();wait(p,500)
+  eq(' '.join(p.locator('button.__composer-pill').inner_text().split()),'5.6 Pro');eq(p.locator('[role="slider"]').get_attribute('aria-valuenow'),'4')
+  set_high();p.locator('[data-action="quick-switch-gpt6"]').click();wait(p,500)
+  eq(' '.join(p.locator('button.__composer-pill').inner_text().split()),'6 Pro');eq(p.locator('[role="slider"]').get_attribute('aria-valuenow'),'4')
+ check('quick buttons raise high capability to Pro for both models',quick_switch_from_high)
  def quick_switch_failure():
   p.evaluate('window.__breakComposerLabel=true');p.locator('[data-action="quick-switch-sol"]').click()
   p.locator('.toast').filter(has_text='切换到 5.6 Pro 失败：编辑器未确认显示“5.6 Pro”').wait_for(timeout=3000)
@@ -310,8 +328,13 @@ with sync_playwright() as pw:
   p=newpage(ctx,p);eq(state(p)['settings']['panelScale'],.8);assert abs(p.locator('.panel').bounding_box()['width']-240)<1
  check('reload restores saved 80-percent size',size_reload)
  def plan100():
-  p.locator('[data-action="settings"]').first.click();p.locator('[data-setting="plan"]').select_option('pro100');back(p);assert '50' in p.locator('.metric-value').first.inner_text();p.locator('[data-action="settings"]').first.click();p.locator('[data-setting="plan"]').select_option('pro200');back(p)
- check('$100 shared weekly view retained',plan100)
+  p.locator('[data-action="settings"]').first.click();p.locator('[data-setting="plan"]').select_option('pro100');back(p)
+  assert '50' in p.locator('.metric-value').first.inner_text();eq(p.locator('[data-action^="quick-switch"]').count(),0)
+  p.locator('[data-action="toggle-menu"]').click();p.locator('[data-action="collapse"]').click()
+  eq(p.locator('[data-action^="quick-switch"]').count(),0);p.locator('[data-action="expand"]').first.click()
+  p.locator('[data-action="settings"]').first.click();p.locator('[data-setting="plan"]').select_option('pro200');back(p)
+  eq(p.locator('[data-action^="quick-switch"]').count(),2)
+ check('$100 shared weekly view hides quick buttons in both layouts',plan100)
  check('no browser errors or unhandled rejections',lambda:eq(p.evaluate('window.__testErrors'),[]))
  # Separate legacy upgrade and visual preview fixtures.
  old={'schemaVersion':4,'settings':{'plan':'pro100','panelScale':.75,'position':{'left':100,'top':80},'inferenceMode':'strict'},'records':[{'id':'legacy','ts':int(time.time()*1000),'model':'solpro','source':'manual','eventKey':'manual-old'}],'pending':[{'requestId':'oldwait','userMessageId':'old-user','requestedModel':'gpt-6-pro','startedAt':int(time.time()*1000),'stage':'awaiting'}],'logs':[]}
@@ -329,7 +352,7 @@ with sync_playwright() as pw:
  for i in range(35):data['records'].append({'id':f's56-{i}','eventKey':f's56-{i}','ts':now-10000,'model':'solpro','source':'manual','status':'manual'})
  v.evaluate('x=>window.__initialGM=x',{KEY:data});v.add_script_tag(content=SHIM+SCRIPT);wait(v);control(v,'preview');wait(v,2900)
  def preview():
-  eq([x.inner_text().strip() for x in v.locator('.metric-value').all()],['58 / 200','35 / 170','47 / 200']);assert '含暂记 1 条' in v.locator('.unresolved-note').inner_text();v.locator('.panel').screenshot(path=str(ROOT/'usage-estimator-v1.2.8-preview.png'));return v.locator('.panel').bounding_box()
+  eq([x.inner_text().strip() for x in v.locator('.metric-value').all()],['58 / 200','35 / 170','47 / 200']);assert '含暂记 1 条' in v.locator('.unresolved-note').inner_text();v.locator('.panel').screenshot(path=str(ROOT/'usage-estimator-v1.2.9-preview.png'));return v.locator('.panel').bounding_box()
  check('actual UI renders 58/200,35/170,47/200 with 1 provisional included',preview)
  ctx.close();browser.close()
 (ROOT/'test-results.json').write_text(json.dumps(res,ensure_ascii=False,indent=2),encoding='utf-8')

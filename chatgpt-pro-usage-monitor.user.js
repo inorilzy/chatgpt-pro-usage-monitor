@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT Pro 用量估算器（GPT-6 / GPT-5.6 Sol Pro）
 // @namespace    https://chatgpt.com/
-// @version      1.2.8
+// @version      1.2.9
 // @description  发送时立即暂记，模型元数据到达就确认/纠正，不等回复完成；并发请求持久账本、失败回退、缩放记忆。本机非官方估算。
 // @author       ChatGPT-generated (unofficial)
 // @match        https://chatgpt.com/*
@@ -24,7 +24,7 @@
   // zjm54321/chatgpt-scripts : server_ste_metadata + user-message-bound telemetry
   // CwithW/gpt-web-routing-detect-tampermonkey : resolved_model_slug vs model_slug
   const APP_ID = 'chatgpt-pro-usage-estimator';
-  const VERSION = '1.2.8';
+  const VERSION = '1.2.9';
   const STORAGE_KEY = `${APP_ID}:state:v1`;
   const DAY_MS = 24 * 60 * 60 * 1000;
   const WEEK_MS = 7 * DAY_MS;
@@ -1907,6 +1907,7 @@
         .footer-btn:hover { background: rgba(255,255,255,.075); border-color: rgba(255,255,255,.17); }
         .footer-btn:active { transform: translateY(1px); }
         .collapsed-body { padding: 0 9px 7px; cursor: pointer; }
+        .collapsed-switch-actions { padding: 0 9px 7px; }
         .collapsed-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
         .collapsed-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .collapsed-grid.three .remaining-value { font-size: 12px; }
@@ -2126,6 +2127,7 @@
           </div>
         </div>
       </div>
+      ${state.settings.plan === 'pro200' ? `<div class="collapsed-switch-actions">${renderModelSwitchActions()}</div>` : ''}
     `;
   }
 
@@ -2145,7 +2147,7 @@
             ? '5.6 无周限额，日限 170；两模型合计日限 200'
             : 'GPT-6 Pro 与 5.6 Pro 共用每周 50 条限额'}</span></div>
           ${renderAccountingNote(metrics)}
-          ${renderModelSwitchActions()}
+          ${state.settings.plan === 'pro200' ? renderModelSwitchActions() : ''}
           <div class="footer-actions">
             <button class="footer-btn" data-action="calibrate">${iconSvg('refresh', 15)} 校准</button>
             <button class="footer-btn" data-action="settings">${iconSvg('settings', 15)} 设置</button>
@@ -2595,6 +2597,30 @@
     }));
   }
 
+  async function selectProCapability() {
+    const control = await waitForModelElement(
+      () => document.querySelector('[role="menuitem"][aria-label="能力"]'),
+      '模型菜单中未找到能力档位',
+    );
+    const slider = () => control.querySelector('[role="slider"][aria-valuenow][aria-valuemax]');
+    const max = Number(slider()?.getAttribute('aria-valuemax'));
+    let current = Number(slider()?.getAttribute('aria-valuenow'));
+    if (!Number.isInteger(max) || !Number.isInteger(current) || max < 1 || current < 0 || current > max)
+      throw new Error('无法读取能力档位');
+    while (current < max) {
+      control.focus();
+      control.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'ArrowRight', code: 'ArrowRight', bubbles: true, cancelable: true,
+      }));
+      const previous = current;
+      await waitForModelElement(
+        () => Number(slider()?.getAttribute('aria-valuenow')) > previous ? control : null,
+        '能力档位未切换到 Pro',
+      );
+      current = Number(slider()?.getAttribute('aria-valuenow'));
+    }
+  }
+
   async function switchComposerModel(target) {
     if (ui.modelSwitch) return;
     ui.modelSwitch = target.key;
@@ -2615,13 +2641,14 @@
         `未找到可选模型“${target.radioLabel}”`,
       );
       radio.click();
+      await selectProCapability();
       const composerInput = await waitForModelElement(
         () => document.querySelector('#prompt-textarea'),
         '未找到编辑器，无法关闭模型菜单',
       );
       dispatchModelPickerPointerDown(composerInput);
       await waitForModelElement(
-        () => modelSwitchText(composer.innerText) === target.composerLabel ? composer : null,
+        () => modelSwitchText(composer.innerText) === target.composerLabel && composer.getAttribute('aria-expanded') !== 'true' ? composer : null,
         `编辑器未确认显示“${target.composerLabel}”`,
       );
       showToast(`已切换到 ${target.label}`, 'success');

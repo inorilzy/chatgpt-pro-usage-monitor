@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/inorilzy/chatgpt-pro-usage-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/inorilzy/chatgpt-pro-usage-monitor/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.8-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.2.9-blue.svg)](CHANGELOG.md)
 
 一个运行在 ChatGPT 网页端的本机 Tampermonkey 用量估算器，用于记录 GPT-6 Pro 与 GPT-5.6 Sol Pro 的消息使用情况。
 
@@ -16,7 +16,7 @@
 - 展示 GPT-6 Pro 周用量（$200 档：200 条/周）。
 - 展示 GPT-5.6 Sol Pro 今日用量（$200 档：170 条/天）。
 - 展示 GPT-6 Pro 与 GPT-5.6 Sol Pro 今日合计用量（$200 档：200 条/天）。
-- 面板提供“6 Pro”和“5.6 Pro”按钮，可直接切换聊天模型。
+- $200 档面板展开或折叠时均提供“6 Pro”和“5.6 Pro”快捷按钮；$100 档不显示。
 - 支持 $100 / $200 套餐手动切换。
 - 发送请求时立即暂记；服务端模型元数据到达后确认、改归或撤销。
 - 每个请求独立跟踪，支持在多个对话之间切换并并发生成。
@@ -58,7 +58,7 @@ $100 档按两模型共用每周 50 条展示。套餐由用户在设置中手�
 Ctrl + Shift + R
 ```
 
-确认面板右下角显示 `脚本 v1.2.8`，并确保没有同时启用多个旧版本。
+确认面板右下角显示 `脚本 v1.2.9`，并确保没有同时启用多个旧版本。
 
 ## 计数逻辑
 
